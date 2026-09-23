@@ -32,7 +32,7 @@ def create_custom_handler(
         if command:
             log.info("custom_command", command=command)
             try:
-                subprocess.Popen(  # noqa: S603
+                subprocess.Popen(
                     command,
                     shell=True,
                     stdout=subprocess.DEVNULL,

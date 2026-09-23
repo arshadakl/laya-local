@@ -10,7 +10,6 @@ from pathlib import Path
 
 import yaml
 
-
 _CONFIG_FILENAME = "config.yaml"
 _DEFAULT_CONFIG_PATH = Path(__file__).parent.parent.parent / _CONFIG_FILENAME
 

@@ -43,7 +43,7 @@ def open_folder(target: str, **kwargs: Any) -> dict[str, Any]:
     if folder_path is None:
         folder_path = target
 
-    if not os.path.isdir(folder_path):
+    if not Path(folder_path).is_dir():
         log.warning("folder_not_found", target=target, path=folder_path)
         return {
             "status": "error",
@@ -53,8 +53,8 @@ def open_folder(target: str, **kwargs: Any) -> dict[str, Any]:
     log.info("opening_folder", target=target, path=folder_path)
 
     try:
-        subprocess.Popen(  # noqa: S603
-            ["explorer", folder_path],  # noqa: S607
+        subprocess.Popen(
+            ["explorer", folder_path],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -83,7 +83,7 @@ def open_file(file_path: str, **kwargs: Any) -> dict[str, Any]:
     Returns:
         Dictionary with status and details.
     """
-    if not os.path.isfile(file_path):
+    if not Path(file_path).is_file():
         log.warning("file_not_found", path=file_path)
         return {
             "status": "error",

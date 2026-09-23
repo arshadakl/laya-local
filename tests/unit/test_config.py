@@ -8,7 +8,6 @@ import pytest
 
 from laya_local.config import (
     AppConfig,
-    ListenerConfig,
     load_config,
 )
 

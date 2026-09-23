@@ -6,14 +6,15 @@ with support for Malayalam, English, and mixed-language input.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
-from numpy.typing import NDArray
-
 import structlog
 
-from laya_local.config import WhisperConfig
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+
+    from laya_local.config import WhisperConfig
 
 log = structlog.get_logger()
 
@@ -120,7 +121,7 @@ class Transcriber:
         """
         model = self._ensure_model()
 
-        segments, info = model.transcribe(
+        segments, _info = model.transcribe(
             file_path,
             beam_size=5,
             language=self._config.language,

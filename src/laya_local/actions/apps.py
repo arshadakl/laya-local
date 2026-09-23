@@ -65,7 +65,7 @@ def open_application(target: str, **kwargs: Any) -> dict[str, Any]:
     log.info("launching_app", target=target, command=command)
 
     try:
-        subprocess.Popen(  # noqa: S603
+        subprocess.Popen(
             command,
             shell=True,
             stdout=subprocess.DEVNULL,
@@ -95,8 +95,6 @@ def close_application(target: str, **kwargs: Any) -> dict[str, Any]:
     Returns:
         Dictionary with status and details.
     """
-    import os
-
     # Map friendly names to process names
     process_names: dict[str, str] = {
         "chrome": "chrome.exe",
@@ -126,7 +124,7 @@ def close_application(target: str, **kwargs: Any) -> dict[str, Any]:
     log.info("closing_app", target=target, process=process_name)
 
     try:
-        result = subprocess.run(  # noqa: S603, S607
+        result = subprocess.run(
             f"taskkill /IM {process_name} /F",
             shell=True,
             capture_output=True,
@@ -140,13 +138,12 @@ def close_application(target: str, **kwargs: Any) -> dict[str, Any]:
                 "target": target,
                 "message": f"Closed {target}",
             }
-        else:
-            return {
-                "status": "warning",
-                "action": "close_app",
-                "target": target,
-                "message": f"{target} may not be running",
-            }
+        return {
+            "status": "warning",
+            "action": "close_app",
+            "target": target,
+            "message": f"{target} may not be running",
+        }
     except OSError as exc:
         log.error("app_close_failed", target=target, error=str(exc))
         return {

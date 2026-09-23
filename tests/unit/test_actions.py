@@ -6,11 +6,11 @@ from typing import Any
 
 import pytest
 
-from laya_local.actions.registry import ActionRegistry
 from laya_local.actions.apps import get_available_apps
 from laya_local.actions.files import get_known_folders
-from laya_local.core.executor import Executor
+from laya_local.actions.registry import ActionRegistry
 from laya_local.config import ActionsConfig
+from laya_local.core.executor import Executor
 
 
 class TestActionRegistry:

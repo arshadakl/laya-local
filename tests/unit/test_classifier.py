@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from laya_local.intents.definitions import (
     ACTION_CRITERIA,
     APP_TARGET_CRITERIA,
@@ -33,7 +31,7 @@ class TestIntentDefinitions:
         assert "media_target" in questions
 
     def test_command_questions_matches_build_questions(self) -> None:
-        assert COMMAND_QUESTIONS == build_questions()
+        assert build_questions() == COMMAND_QUESTIONS
 
     def test_all_questions_have_required_fields(self) -> None:
         questions = build_questions()

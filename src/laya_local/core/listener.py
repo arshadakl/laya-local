@@ -7,17 +7,18 @@ then returns the recorded audio for transcription.
 from __future__ import annotations
 
 import time
-from typing import Any
+from typing import TYPE_CHECKING
 
 import numpy as np
 import sounddevice as sd
-from numpy.typing import NDArray
-from scipy.io import wavfile
-
 import structlog
 
-from laya_local.config import ListenerConfig
 from laya_local.utils.audio import compute_rms, normalize_audio
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+
+    from laya_local.config import ListenerConfig
 
 log = structlog.get_logger()
 
@@ -66,7 +67,7 @@ class Listener:
         Uses keyboard polling. On Windows, checks the key state
         via the keyboard module.
         """
-        import keyboard  # noqa: F811
+        import keyboard
 
         keyboard.wait(self._trigger_key)
         # Small debounce delay
@@ -83,7 +84,7 @@ class Listener:
         Returns:
             Recorded audio as float32 array.
         """
-        import keyboard  # noqa: F811
+        import keyboard
 
         frames: list[NDArray[np.float32]] = []
         silence_start: float | None = None
@@ -109,7 +110,7 @@ class Listener:
                     break
 
                 # Read audio chunk
-                data, overflowed = stream.read(self._sample_rate // 10)  # 100ms chunks
+                data, _overflowed = stream.read(self._sample_rate // 10)  # 100ms chunks
                 chunk = data[:, 0] if data.ndim > 1 else data
                 frames.append(chunk.copy())
 

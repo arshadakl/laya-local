@@ -88,12 +88,20 @@ select = [
     "TCH",   # flake8-type-checking
 ]
 ignore = [
-    "E501",  # Line too long (handled by formatter)
+    "E501",   # Line too long (handled by formatter)
+    "TCH",    # Type-checking imports (style preference)
+    "SIM108", # Ternary operator (readability preference)
+    "RET504", # Unnecessary assignment before return
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 "tests/*" = ["S101"]
+"scripts/*" = ["T201"]  # Allow print() in CLI scripts
+"src/laya_local/__main__.py" = ["T201"]  # Allow print() in CLI entry point
+"src/laya_local/responder/tts.py" = ["T201"]  # Allow print() for TTS fallback
+"src/laya_local/actions/*.py" = ["S602", "S603", "S606", "S607"]  # Allow subprocess/os.startfile in actions
+"src/laya_local/utils/platform.py" = ["S602"]  # Allow subprocess in platform utils
 
 [tool.ruff.lint.isort]
 known-first-party = ["laya_local"]

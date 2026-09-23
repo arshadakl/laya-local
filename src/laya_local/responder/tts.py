@@ -8,11 +8,12 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
 
 import structlog
 
-from laya_local.config import TTSConfig
+if TYPE_CHECKING:
+    from laya_local.config import TTSConfig
 
 log = structlog.get_logger()
 
@@ -60,9 +61,9 @@ class Responder:
             text: Text to synthesize.
         """
         try:
-            from piper import PiperVoice
-            import sounddevice as sd
             import numpy as np
+            import sounddevice as sd
+            from piper import PiperVoice
 
             voice = PiperVoice.load(self._voice_model)
 
@@ -70,7 +71,7 @@ class Responder:
                 tmp_path = tmp.name
 
             # Synthesize to temp file
-            with open(tmp_path, "wb") as f:
+            with Path(tmp_path).open("wb") as f:
                 voice.synthesize(text, f)
 
             # Play the audio

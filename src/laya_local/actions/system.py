@@ -23,8 +23,8 @@ def _run_powershell(command: str) -> dict[str, Any]:
         Dictionary with status and details.
     """
     try:
-        result = subprocess.run(  # noqa: S603
-            ["powershell", "-Command", command],  # noqa: S607
+        result = subprocess.run(
+            ["powershell", "-Command", command],
             capture_output=True,
             text=True,
             timeout=10,
@@ -32,11 +32,10 @@ def _run_powershell(command: str) -> dict[str, Any]:
 
         if result.returncode == 0:
             return {"status": "success"}
-        else:
-            return {
-                "status": "error",
-                "message": result.stderr.strip() or "Command failed",
-            }
+        return {
+            "status": "error",
+            "message": result.stderr.strip() or "Command failed",
+        }
     except subprocess.TimeoutExpired:
         return {"status": "error", "message": "Command timed out"}
     except OSError as exc:

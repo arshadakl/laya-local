@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 # ── Action categories ─────────────────────────────────────────────
 ACTION_CRITERIA: dict[str, str] = {
     "open_app": "Open or launch an application",

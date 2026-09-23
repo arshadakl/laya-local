@@ -10,7 +10,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import sys
 
 import structlog
 
@@ -28,7 +27,8 @@ def _build_parser() -> argparse.ArgumentParser:
         description="A local-first Malayalam/English assistant for Windows.",
     )
     parser.add_argument(
-        "-V", "--version",
+        "-V",
+        "--version",
         action="version",
         version=f"%(prog)s {__version__}",
     )
@@ -74,7 +74,9 @@ def main(argv: list[str] | None = None) -> None:
     config_path = Path(args.config) if args.config else None
     config = load_config(config_path)
 
-    log.info("starting", version=__version__, text_mode=args.text, voice_mode=args.voice)
+    log.info(
+        "starting", version=__version__, text_mode=args.text, voice_mode=args.voice
+    )
 
     # Determine input mode
     use_voice = args.voice or not args.text
@@ -91,10 +93,10 @@ def _run_voice_mode(config: object) -> None:
     Args:
         config: Application configuration.
     """
-    from laya_local.core.listener import Listener
-    from laya_local.core.transcriber import Transcriber
     from laya_local.core.classifier import Classifier
     from laya_local.core.executor import Executor
+    from laya_local.core.listener import Listener
+    from laya_local.core.transcriber import Transcriber
 
     log.info("loading_models")
 

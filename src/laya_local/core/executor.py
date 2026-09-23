@@ -65,7 +65,9 @@ class Executor:
             actions=self._registry.registered_actions,
         )
 
-    def _register_custom_actions(self, custom_config: dict[str, dict[str, str]]) -> None:
+    def _register_custom_actions(
+        self, custom_config: dict[str, dict[str, str]]
+    ) -> None:
         """Register user-defined custom actions from config.
 
         Args:
