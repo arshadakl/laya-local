@@ -1,0 +1,31 @@
+# laya-local configuration example.
+# Copy this file to config.yaml and customize.
+
+whisper:
+  model: "small"          # tiny, base, small, medium, large-v3
+  device: "cpu"           # cpu or cuda
+  language: null           # null = auto-detect, or "en", "ml", etc.
+
+laya:
+  model: "convaiinnovations/laya-multilingual"
+  device: "auto"           # auto, cpu, cuda
+  max_loaded: 1            # number of checkpoints to keep in memory
+
+tts:
+  enabled: false           # enable voice responses
+  language: "en"           # voice language
+  model: "en_US-lessac-medium"  # Piper voice model
+
+listener:
+  trigger_key: "ctrl"      # push-to-talk key (ctrl, shift, alt, or key name)
+  sample_rate: 16000       # audio sample rate in Hz
+  channels: 1              # mono
+  silence_threshold: 500   # VAD silence threshold
+  max_duration: 10         # max recording duration in seconds
+
+actions:
+  custom: {}
+  # custom:
+  #   open_project:
+  #     command: "code"
+  #     args: ["D:\\Projects\\my-project"]
