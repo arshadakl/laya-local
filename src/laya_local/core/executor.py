@@ -6,6 +6,7 @@ action handler. Only pre-registered actions can be executed.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 import structlog
@@ -14,6 +15,26 @@ from laya_local.actions.registry import ActionRegistry
 from laya_local.config import ActionsConfig
 
 log = structlog.get_logger()
+
+# Actions that should never fire without explicit confirmation
+_DESTRUCTIVE_TARGETS = frozenset({"shutdown", "restart", "hibernate"})
+
+
+# Default confirmation prompt for terminal use
+def _default_confirm(message: str) -> bool:
+    """Ask the user to confirm a destructive action in the terminal.
+
+    Args:
+        message: Confirmation prompt text.
+
+    Returns:
+        True if the user confirms, False otherwise.
+    """
+    try:
+        answer = input(f"  ⚠ {message}  (y/n): ").strip().lower()
+        return answer in ("y", "yes")
+    except (EOFError, KeyboardInterrupt):
+        return False
 
 
 class Executor:
@@ -24,10 +45,18 @@ class Executor:
 
     Args:
         config: Actions configuration with custom action definitions.
+        confirm_fn: Optional confirmation callback for destructive
+            actions. Defaults to a console prompt.
     """
 
-    def __init__(self, config: ActionsConfig) -> None:
+    def __init__(
+        self,
+        config: ActionsConfig,
+        confirm_fn: Callable[[str], bool] | None = None,
+    ) -> None:
         self._registry = ActionRegistry()
+        self._confirm_destructive = config.confirm_destructive
+        self._confirm_fn = confirm_fn or _default_confirm
         self._register_builtin_actions()
 
         if config.custom:
@@ -113,6 +142,22 @@ class Executor:
                 "status": "error",
                 "message": f"Unknown action: {action}",
             }
+
+        # ── Destructive action confirmation ───────────────────────
+        if (
+            self._confirm_destructive
+            and action == "system_control"
+            and target in _DESTRUCTIVE_TARGETS
+        ):
+            confirmed = self._confirm_fn(f"{target} the computer?")
+            if not confirmed:
+                log.info("action_cancelled", action=action, target=target)
+                return {
+                    "status": "cancelled",
+                    "action": action,
+                    "target": target,
+                    "message": f"Cancelled {target}",
+                }
 
         try:
             result = handler(target=target)

@@ -7,8 +7,10 @@ transcription preview, and action result display.
 from __future__ import annotations
 
 import math
+import queue
 import threading
 import tkinter as tk
+from tkinter import messagebox
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -38,6 +40,40 @@ TRANSCRIBING = "transcribing"
 CLASSIFYING = "classifying"
 RESULT_OK = "result_ok"
 RESULT_ERR = "result_err"
+
+
+def tk_confirm(message: str) -> bool:
+    """Ask the user to confirm a destructive action via a dialog.
+
+    Must be called from a background thread; schedules the dialog on
+    the tkinter main thread and waits for the answer.
+
+    Args:
+        message: Confirmation prompt text.
+
+    Returns:
+        True if the user confirms, False otherwise.
+    """
+    result_queue: queue.Queue[bool] = queue.Queue()
+
+    root = tk._default_root  # type: ignore[attr-defined]
+    if root is None:
+        return False
+
+    def _ask() -> None:
+        answer = messagebox.askyesno(
+            "laya-local — Confirm",
+            f"{message}",
+            parent=root,
+        )
+        result_queue.put(bool(answer))
+
+    root.after(0, _ask)
+
+    try:
+        return result_queue.get(timeout=15)
+    except queue.Empty:
+        return False
 
 
 class AssistantUI:
@@ -102,7 +138,7 @@ class AssistantUI:
         # ── State label ───────────────────────────────────────────
         self._state_lbl = tk.Label(
             self._root,
-            text="Hold Ctrl to speak",
+            text="Hold right Ctrl to speak",
             font=("Segoe UI", 14),
             fg=_DIM,
             bg=_BG,
@@ -195,7 +231,7 @@ class AssistantUI:
         bar.pack(fill=tk.X, side=tk.BOTTOM)
         self._status = tk.Label(
             bar,
-            text="  Hold Ctrl to speak  |  Ctrl+C to quit",
+            text="  Hold right Ctrl to speak  |  Esc to quit",
             font=("Segoe UI", 9),
             fg=_DIM,
             bg=_BG3,
@@ -301,7 +337,7 @@ class AssistantUI:
     def _set_state(self, state: str) -> None:
         self._state = state
         labels = {
-            IDLE: ("Hold Ctrl to speak", _DIM),
+            IDLE: ("Hold right Ctrl to speak", _DIM),
             RECORDING: ("Listening...", _BLUE),
             TRANSCRIBING: ("Transcribing...", _YELLOW),
             CLASSIFYING: ("Thinking...", _PURPLE),
@@ -365,6 +401,12 @@ class AssistantUI:
                         0, self._add_history, f"  \u2713 {text} \u2192 {display}"
                     )
                     self._root.after(0, self._set_state, RESULT_OK)
+                elif status == "cancelled":
+                    self._root.after(0, self._set_action, "Cancelled", _YELLOW)
+                    self._root.after(
+                        0, self._add_history, f"  \u26a0 {text} \u2192 cancelled"
+                    )
+                    self._root.after(0, self._set_state, RESULT_ERR)
                 else:
                     self._root.after(0, self._set_action, message, _RED)
                     self._root.after(

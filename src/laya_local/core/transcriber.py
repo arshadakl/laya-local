@@ -50,7 +50,10 @@ class Transcriber:
             device=self._config.device,
         )
 
-        compute_type = "int8" if self._config.device == "cpu" else "float16"
+        compute_type = self._config.compute_type
+        if self._config.device != "cpu" and compute_type == "int8":
+            compute_type = "float16"
+
         self._model = WhisperModel(
             self._config.model,
             device=self._config.device,

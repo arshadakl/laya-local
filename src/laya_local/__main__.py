@@ -10,6 +10,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+from collections.abc import Callable
 
 import structlog
 
@@ -84,11 +85,15 @@ def main(argv: list[str] | None = None) -> None:
         _run_voice_gui(config)
 
 
-def _init_components(config: object) -> tuple[object, object, object, object]:
+def _init_components(
+    config: object,
+    confirm_fn: Callable[[str], bool] | None = None,
+) -> tuple[object, object, object, object]:
     """Initialize all pipeline components.
 
     Args:
         config: Application configuration.
+        confirm_fn: Optional confirmation callback for destructive actions.
 
     Returns:
         Tuple of (listener, transcriber, classifier, executor).
@@ -103,7 +108,10 @@ def _init_components(config: object) -> tuple[object, object, object, object]:
     listener = Listener(config.listener)  # type: ignore[arg-type]
     transcriber = Transcriber(config.whisper)  # type: ignore[arg-type]
     classifier = Classifier(config.laya)  # type: ignore[arg-type]
-    executor = Executor(config.actions)  # type: ignore[arg-type]
+    executor = Executor(
+        config.actions,  # type: ignore[arg-type]
+        confirm_fn=confirm_fn,
+    )
 
     return listener, transcriber, classifier, executor
 
@@ -114,7 +122,11 @@ def _run_voice_gui(config: object) -> None:
     Args:
         config: Application configuration.
     """
-    listener, transcriber, classifier, executor = _init_components(config)
+    from laya_local.ui.assistant import tk_confirm
+
+    listener, transcriber, classifier, executor = _init_components(
+        config, confirm_fn=tk_confirm
+    )
 
     log.info("ready", mode="voice_gui")
 

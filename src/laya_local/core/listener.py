@@ -41,6 +41,7 @@ class Listener:
         self._channels = config.channels
         self._silence_threshold = config.silence_threshold
         self._max_duration = config.max_duration
+        self._beep = config.beep
 
     def listen(
         self,
@@ -70,15 +71,35 @@ class Listener:
         if on_start:
             on_start()
 
+        if self._beep:
+            self._play_beep(880, 0.08)
+
         log.debug("recording_started")
         audio = self._record(on_audio)
         log.debug("recording_stopped", samples=len(audio))
+
+        if self._beep:
+            self._play_beep(660, 0.06)
 
         if len(audio) < self._sample_rate * 0.3:
             log.debug("recording_too_short")
             return None
 
         return normalize_audio(audio)
+
+    def _play_beep(self, frequency: float = 880, duration: float = 0.08) -> None:
+        """Play a short feedback beep.
+
+        Args:
+            frequency: Tone frequency in Hz.
+            duration: Tone duration in seconds.
+        """
+        try:
+            t = np.linspace(0, duration, int(self._sample_rate * duration), False)
+            tone = 0.25 * np.sin(2 * np.pi * frequency * t)
+            sd.play(tone, self._sample_rate)
+        except Exception as exc:
+            log.debug("beep_failed", error=str(exc))
 
     def _record(
         self,

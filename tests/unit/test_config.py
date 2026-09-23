@@ -21,9 +21,10 @@ class TestAppConfig:
         assert config.whisper.device == "cpu"
         assert config.laya.model == "convaiinnovations/laya-multilingual"
         assert config.tts.enabled is False
-        assert config.listener.trigger_key == "ctrl"
+        assert config.listener.trigger_key == "right ctrl"
         assert config.listener.sample_rate == 16000
         assert config.actions.custom == {}
+        assert config.actions.confirm_destructive is True
 
     def test_config_is_frozen(self) -> None:
         config = AppConfig()

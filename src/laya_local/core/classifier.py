@@ -11,6 +11,7 @@ from typing import Any
 import structlog
 
 from laya_local.config import LayaConfig
+from laya_local.core.matcher import CommandMatcher
 from laya_local.intents.definitions import build_questions
 
 log = structlog.get_logger()
@@ -20,10 +21,10 @@ _CONFIDENCE_THRESHOLD = 0.40
 
 
 class Classifier:
-    """Laya-based intent classifier for multilingual commands.
+    """Hybrid intent classifier for multilingual commands.
 
-    Loads the Laya multilingual model and classifies user input
-    into structured intents with confidence scores.
+    First tries a fast deterministic matcher for known commands, then
+    falls back to the Laya multilingual model for novel phrasing.
 
     Args:
         config: Laya configuration settings.
@@ -33,6 +34,7 @@ class Classifier:
         self._config = config
         self._router: Any = None
         self._questions = build_questions()
+        self._matcher = CommandMatcher()
 
     def _ensure_model(self) -> Any:
         """Lazy-load the Laya agent on first use.
@@ -65,6 +67,9 @@ class Classifier:
     def classify(self, text: str) -> dict[str, str | float] | None:
         """Classify a text command into a structured intent.
 
+        Tries the deterministic matcher first (fast + precise), then
+        falls back to Laya for commands it does not recognize.
+
         Args:
             text: The user's command text.
 
@@ -75,6 +80,30 @@ class Classifier:
         if not text or not text.strip():
             return None
 
+        # ── Fast path: deterministic matcher ──────────────────────
+        matched = self._matcher.match(text)
+        if matched is not None:
+            log.info(
+                "classified",
+                source="matcher",
+                action=matched["action"],
+                target=matched["target"],
+            )
+            return matched
+
+        # ── Slow path: Laya model ─────────────────────────────────
+        log.debug("matcher_miss", text=text)
+        return self._classify_with_laya(text)
+
+    def _classify_with_laya(self, text: str) -> dict[str, str | float] | None:
+        """Classify using the Laya model.
+
+        Args:
+            text: The user's command text.
+
+        Returns:
+            Intent dict or None if confidence is too low.
+        """
         agent = self._ensure_model()
 
         state = {"body": text}
@@ -89,7 +118,7 @@ class Classifier:
         confidence = action_answer.get("confidence", 0.0)
 
         log.debug(
-            "classification_result",
+            "laya_result",
             action=action,
             confidence=f"{confidence:.2f}",
         )
@@ -107,6 +136,7 @@ class Classifier:
         intent: dict[str, str | float] = {
             "action": action,
             "confidence": confidence,
+            "source": "laya",
             "text": text,
         }
 

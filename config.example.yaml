@@ -2,9 +2,10 @@
 # Copy this file to config.yaml and customize.
 
 whisper:
-  model: "small"          # tiny, base, small, medium, large-v3
-  device: "cpu"           # cpu or cuda
+  model: "small"           # tiny, base, small, medium, large-v3
+  device: "cpu"            # cpu or cuda
   language: null           # null = auto-detect, or "en", "ml", etc.
+  compute_type: "int8"     # int8 (CPU), float16 (GPU)
 
 laya:
   model: "convaiinnovations/laya-multilingual"
@@ -17,13 +18,15 @@ tts:
   model: "en_US-lessac-medium"  # Piper voice model
 
 listener:
-  trigger_key: "ctrl"      # push-to-talk key (ctrl, shift, alt, or key name)
+  trigger_key: "right ctrl"  # push-to-talk key (right ctrl avoids Ctrl+C conflicts)
   sample_rate: 16000       # audio sample rate in Hz
   channels: 1              # mono
   silence_threshold: 500   # VAD silence threshold
   max_duration: 10         # max recording duration in seconds
+  beep: true               # play feedback beeps on record start/stop
 
 actions:
+  confirm_destructive: true   # ask before shutdown/restart
   custom: {}
   # custom:
   #   open_project:

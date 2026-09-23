@@ -21,6 +21,7 @@ class WhisperConfig:
     model: str = "small"
     device: str = "cpu"
     language: str | None = None
+    compute_type: str = "int8"
 
 
 @dataclass(frozen=True)
@@ -45,11 +46,12 @@ class TTSConfig:
 class ListenerConfig:
     """Microphone listener configuration."""
 
-    trigger_key: str = "ctrl"
+    trigger_key: str = "right ctrl"
     sample_rate: int = 16000
     channels: int = 1
     silence_threshold: int = 500
     max_duration: int = 10
+    beep: bool = True
 
 
 @dataclass(frozen=True)
@@ -57,6 +59,7 @@ class ActionsConfig:
     """Action system configuration."""
 
     custom: dict[str, dict[str, str]] = field(default_factory=dict)
+    confirm_destructive: bool = True
 
 
 @dataclass(frozen=True)
