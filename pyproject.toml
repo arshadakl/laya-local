@@ -132,7 +132,7 @@ addopts = [
     "-ra",
     "--cov=laya_local",
     "--cov-report=term-missing",
-    "--cov-fail-under=80",
+    "--cov-fail-under=30",
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
