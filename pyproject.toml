@@ -1,0 +1,166 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# ── Project metadata ──────────────────────────────────────────────
+[project]
+name = "laya-local"
+version = "0.1.0"
+description = "A local-first Malayalam/English assistant for Windows that turns voice or text commands into safe, structured actions using Laya."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.11"
+authors = [
+    { name = "Arshad AKL", email = "arshadakl@gmail.com" },
+]
+keywords = ["voice-assistant", "malayalam", "laya", "windows", "automation", "speech-to-text"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
+dependencies = [
+    "laya>=1.0",
+    "faster-whisper>=1.0",
+    "piper-tts>=1.0",
+    "sounddevice>=0.5",
+    "numpy>=1.26",
+    "scipy>=1.12",
+    "pyyaml>=6.0",
+    "structlog>=25.0",
+    "pyautogui>=0.9",
+    "psutil>=5.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=6.0",
+    "pytest-xdist>=3.0",
+    "mypy>=1.15",
+    "ruff>=0.16",
+    "pre-commit>=4.0",
+    "towncrier>=24.0",
+]
+
+[project.scripts]
+laya-local = "laya_local.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/arshadakl/laya-local"
+Repository = "https://github.com/arshadakl/laya-local"
+Issues = "https://github.com/arshadakl/laya-local/issues"
+Changelog = "https://github.com/arshadakl/laya-local/blob/main/CHANGELOG.md"
+
+# ── Build backend ─────────────────────────────────────────────────
+[tool.hatch.build.targets.wheel]
+packages = ["src/laya_local"]
+
+# ── Ruff ──────────────────────────────────────────────────────────
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # Pyflakes
+    "I",     # isort
+    "UP",    # pyupgrade
+    "B",     # flake8-bugbear
+    "S",     # flake8-bandit (security)
+    "SIM",   # flake8-simplify
+    "C4",    # flake8-comprehensions
+    "DTZ",   # flake8-datetimez
+    "T20",   # flake8-print
+    "RET",   # flake8-return
+    "PTH",   # flake8-use-pathlib
+    "RUF",   # Ruff-specific rules
+    "TCH",   # flake8-type-checking
+]
+ignore = [
+    "E501",   # Line too long (handled by formatter)
+    "TCH",    # Type-checking imports (style preference)
+    "SIM108", # Ternary operator (readability preference)
+    "RET504", # Unnecessary assignment before return
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/*" = ["S101"]
+"scripts/*" = ["T201"]  # Allow print() in CLI scripts
+"src/laya_local/__main__.py" = ["T201"]  # Allow print() in CLI entry point
+"src/laya_local/responder/tts.py" = ["T201"]  # Allow print() for TTS fallback
+"src/laya_local/actions/*.py" = ["S602", "S603", "S606", "S607"]  # Allow subprocess/os.startfile in actions
+"src/laya_local/utils/platform.py" = ["S602"]  # Allow subprocess in platform utils
+
+[tool.ruff.lint.isort]
+known-first-party = ["laya_local"]
+
+# ── Mypy ──────────────────────────────────────────────────────────
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_any_generics = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false
+
+# ── Pytest ────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--import-mode=importlib",
+    "-ra",
+    "--cov=laya_local",
+    "--cov-report=term-missing",
+    "--cov-fail-under=80",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks integration tests",
+]
+
+# ── Coverage ──────────────────────────────────────────────────────
+[tool.coverage.run]
+source = ["laya_local"]
+branch = true
+omit = ["*/tests/*", "*/__main__.py"]
+
+[tool.coverage.report]
+show_missing = true
+precision = 2
+fail_under = 80
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "@overload",
+]
+
+# ── Towncrier (changelog) ────────────────────────────────────────
+[tool.towncrier]
+package = "laya_local"
+directory = "changes"
+filename = "CHANGELOG.md"
+underlines = ["", "", ""]
+title_format = "{version} - {project_date}"

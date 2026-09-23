@@ -1,0 +1,92 @@
+[
+  {
+    "text": "Chrome തുറക്കൂ",
+    "expected_action": "open_app",
+    "expected_target": "chrome",
+    "language": "malayalam"
+  },
+  {
+    "text": "VS Code തുറക്കൂ",
+    "expected_action": "open_app",
+    "expected_target": "vscode",
+    "language": "malayalam"
+  },
+  {
+    "text": "Downloads folder തുറക്കൂ",
+    "expected_action": "open_folder",
+    "expected_target": "downloads",
+    "language": "malayalam"
+  },
+  {
+    "text": "ശബ്ദം കുറയ്ക്കൂ",
+    "expected_action": "system_control",
+    "expected_target": "volume_down",
+    "language": "malayalam"
+  },
+  {
+    "text": "Open Chrome",
+    "expected_action": "open_app",
+    "expected_target": "chrome",
+    "language": "english"
+  },
+  {
+    "text": "Open VS Code",
+    "expected_action": "open_app",
+    "expected_target": "vscode",
+    "language": "english"
+  },
+  {
+    "text": "Open terminal",
+    "expected_action": "open_app",
+    "expected_target": "terminal",
+    "language": "english"
+  },
+  {
+    "text": "Shutdown",
+    "expected_action": "system_control",
+    "expected_target": "shutdown",
+    "language": "english"
+  },
+  {
+    "text": "Lock the computer",
+    "expected_action": "system_control",
+    "expected_target": "lock",
+    "language": "english"
+  },
+  {
+    "text": "Chrome thurakku",
+    "expected_action": "open_app",
+    "expected_target": "chrome",
+    "language": "manglish"
+  },
+  {
+    "text": "Spotify open cheyy",
+    "expected_action": "open_app",
+    "expected_target": "spotify",
+    "language": "manglish"
+  },
+  {
+    "text": "lock cheyy",
+    "expected_action": "system_control",
+    "expected_target": "lock",
+    "language": "manglish"
+  },
+  {
+    "text": "Discord thurakku",
+    "expected_action": "open_app",
+    "expected_target": "discord",
+    "language": "manglish"
+  },
+  {
+    "text": "Play music",
+    "expected_action": "media",
+    "expected_target": "play_pause",
+    "language": "english"
+  },
+  {
+    "text": "Next song",
+    "expected_action": "media",
+    "expected_target": "next_track",
+    "language": "english"
+  }
+]
