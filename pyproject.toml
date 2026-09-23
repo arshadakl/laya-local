@@ -48,7 +48,6 @@ dev = [
     "pytest-xdist>=3.0",
     "mypy>=1.15",
     "ruff>=0.16",
-    "pre-commit>=4.0",
     "towncrier>=24.0",
 ]
 

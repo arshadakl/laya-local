@@ -1,6 +1,5 @@
 # laya-local
 
-[![CI](https://github.com/arshadakl/laya-local/actions/workflows/ci.yml/badge.svg)](https://github.com/arshadakl/laya-local/actions/workflows/ci.yml)
 [![Python versions](https://img.shields.io/pypi/pyversions/laya-local.svg)](https://pypi.org/project/laya-local/)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-black)](https://github.com/astral-sh/ruff)
