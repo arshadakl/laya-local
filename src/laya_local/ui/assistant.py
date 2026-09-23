@@ -1,7 +1,7 @@
 """Voice assistant GUI built with tkinter.
 
-Provides a dark-themed, modern interface with animated mic indicator,
-real-time transcription display, and action result feedback.
+Dark-themed interface with animated mic, real-time audio visualization,
+transcription preview, and action result display.
 """
 
 from __future__ import annotations
@@ -11,41 +11,37 @@ import threading
 import tkinter as tk
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 if TYPE_CHECKING:
     from laya_local.core.classifier import Classifier
     from laya_local.core.executor import Executor
     from laya_local.core.listener import Listener
     from laya_local.core.transcriber import Transcriber
 
-# ── Color palette (dark theme) ────────────────────────────────────
+# ── Colors ────────────────────────────────────────────────────────
 _BG = "#0d1117"
-_BG_SECONDARY = "#161b22"
-_BG_TERTIARY = "#21262d"
+_BG2 = "#161b22"
+_BG3 = "#21262d"
 _TEXT = "#e6edf3"
-_TEXT_DIM = "#8b949e"
-_ACCENT = "#58a6ff"
-_ACCENT_GREEN = "#3fb950"
-_ACCENT_RED = "#f85149"
-_ACCENT_YELLOW = "#d29922"
-_ACCENT_PURPLE = "#bc8cff"
+_DIM = "#8b949e"
+_BLUE = "#58a6ff"
+_GREEN = "#3fb950"
+_RED = "#f85149"
+_YELLOW = "#d29922"
+_PURPLE = "#bc8cff"
 
 # ── States ────────────────────────────────────────────────────────
-STATE_IDLE = "idle"
-STATE_LISTENING = "listening"
-STATE_PROCESSING = "processing"
-STATE_RESULT = "result"
-STATE_ERROR = "error"
+IDLE = "idle"
+RECORDING = "recording"
+TRANSCRIBING = "transcribing"
+CLASSIFYING = "classifying"
+RESULT_OK = "result_ok"
+RESULT_ERR = "result_err"
 
 
 class AssistantUI:
-    """Main voice assistant GUI window.
-
-    Displays a dark-themed interface with:
-    - Animated microphone indicator (pulsing circle)
-    - Current state label (Idle / Listening / Processing)
-    - Transcribed text display
-    - Action result display
-    - Status bar with shortcuts
+    """Voice assistant GUI with animated mic and real-time feedback.
 
     Args:
         listener: Audio listener component.
@@ -66,363 +62,296 @@ class AssistantUI:
         self._classifier = classifier
         self._executor = executor
 
-        self._state = STATE_IDLE
-        self._pulse_angle = 0.0
-        self._is_listening = False
-        self._should_stop = False
+        self._state = IDLE
+        self._angle = 0.0
+        self._stop = False
 
-        # Build the window
+        # Audio levels for visualization (last N chunks)
+        self._audio_levels: list[float] = [0.0] * 32
+
+        # Build window
         self._root = tk.Tk()
         self._root.title("laya-local")
-        self._root.geometry("520x600")
+        self._root.geometry("520x650")
         self._root.configure(bg=_BG)
         self._root.resizable(False, False)
-
-        # Handle window close
         self._root.protocol("WM_DELETE_WINDOW", self._on_close)
 
-        # Build UI elements
         self._build_ui()
-
-        # Start animation loop
         self._animate()
 
     def _build_ui(self) -> None:
-        """Build all UI elements."""
-        # ── Title bar ─────────────────────────────────────────────
-        title_frame = tk.Frame(self._root, bg=_BG, height=50)
-        title_frame.pack(fill=tk.X, padx=20, pady=(20, 0))
+        """Construct all UI elements."""
+        # ── Header ────────────────────────────────────────────────
+        hdr = tk.Frame(self._root, bg=_BG)
+        hdr.pack(fill=tk.X, padx=20, pady=(15, 0))
 
         tk.Label(
-            title_frame,
-            text="laya-local",
-            font=("Segoe UI", 16, "bold"),
-            fg=_ACCENT,
-            bg=_BG,
+            hdr, text="laya-local", font=("Segoe UI", 18, "bold"), fg=_BLUE, bg=_BG
         ).pack(side=tk.LEFT)
-
-        tk.Label(
-            title_frame,
-            text="v0.1.0",
-            font=("Segoe UI", 10),
-            fg=_TEXT_DIM,
-            bg=_BG,
-        ).pack(side=tk.LEFT, padx=(8, 0), pady=(4, 0))
-
-        # ── Mic indicator area ────────────────────────────────────
-        self._mic_canvas = tk.Canvas(
-            self._root,
-            width=200,
-            height=200,
-            bg=_BG,
-            highlightthickness=0,
+        tk.Label(hdr, text="v0.1.0", font=("Segoe UI", 10), fg=_DIM, bg=_BG).pack(
+            side=tk.LEFT, padx=(8, 0), pady=(5, 0)
         )
-        self._mic_canvas.pack(pady=(30, 10))
+
+        # ── Mic canvas ────────────────────────────────────────────
+        self._canvas = tk.Canvas(
+            self._root, width=200, height=200, bg=_BG, highlightthickness=0
+        )
+        self._canvas.pack(pady=(20, 5))
 
         # ── State label ───────────────────────────────────────────
-        self._state_label = tk.Label(
+        self._state_lbl = tk.Label(
             self._root,
-            text="Press Ctrl to speak",
-            font=("Segoe UI", 13),
-            fg=_TEXT_DIM,
+            text="Hold Ctrl to speak",
+            font=("Segoe UI", 14),
+            fg=_DIM,
             bg=_BG,
         )
-        self._state_label.pack(pady=(0, 20))
+        self._state_lbl.pack(pady=(0, 10))
+
+        # ── Audio level bars ──────────────────────────────────────
+        self._bars_canvas = tk.Canvas(
+            self._root, width=460, height=40, bg=_BG2, highlightthickness=0
+        )
+        self._bars_canvas.pack(padx=20, pady=(0, 10))
 
         # ── Transcript card ───────────────────────────────────────
-        transcript_card = tk.Frame(self._root, bg=_BG_SECONDARY, bd=0)
-        transcript_card.pack(fill=tk.X, padx=20, pady=(0, 10))
+        card1 = tk.Frame(self._root, bg=_BG2)
+        card1.pack(fill=tk.X, padx=20, pady=(0, 8))
 
         tk.Label(
-            transcript_card,
+            card1,
             text="  HEARD",
             font=("Segoe UI", 9, "bold"),
-            fg=_TEXT_DIM,
-            bg=_BG_SECONDARY,
+            fg=_DIM,
+            bg=_BG2,
             anchor="w",
         ).pack(fill=tk.X, padx=10, pady=(8, 0))
 
-        self._transcript_label = tk.Label(
-            transcript_card,
+        self._heard = tk.Label(
+            card1,
             text="...",
             font=("Segoe UI", 12),
             fg=_TEXT,
-            bg=_BG_SECONDARY,
+            bg=_BG2,
             anchor="w",
-            wraplength=460,
+            wraplength=440,
             justify=tk.LEFT,
         )
-        self._transcript_label.pack(fill=tk.X, padx=10, pady=(4, 10))
+        self._heard.pack(fill=tk.X, padx=10, pady=(4, 10))
 
         # ── Result card ───────────────────────────────────────────
-        result_card = tk.Frame(self._root, bg=_BG_SECONDARY, bd=0)
-        result_card.pack(fill=tk.X, padx=20, pady=(0, 10))
+        card2 = tk.Frame(self._root, bg=_BG2)
+        card2.pack(fill=tk.X, padx=20, pady=(0, 8))
 
         tk.Label(
-            result_card,
+            card2,
             text="  ACTION",
             font=("Segoe UI", 9, "bold"),
-            fg=_TEXT_DIM,
-            bg=_BG_SECONDARY,
+            fg=_DIM,
+            bg=_BG2,
             anchor="w",
         ).pack(fill=tk.X, padx=10, pady=(8, 0))
 
-        self._result_label = tk.Label(
-            result_card,
+        self._action = tk.Label(
+            card2,
             text="...",
             font=("Segoe UI", 12),
-            fg=_ACCENT_GREEN,
-            bg=_BG_SECONDARY,
+            fg=_GREEN,
+            bg=_BG2,
             anchor="w",
-            wraplength=460,
+            wraplength=440,
             justify=tk.LEFT,
         )
-        self._result_label.pack(fill=tk.X, padx=10, pady=(4, 10))
+        self._action.pack(fill=tk.X, padx=10, pady=(4, 10))
 
-        # ── History list ──────────────────────────────────────────
-        history_frame = tk.Frame(self._root, bg=_BG_SECONDARY, bd=0)
-        history_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 10))
+        # ── History ───────────────────────────────────────────────
+        hist_frame = tk.Frame(self._root, bg=_BG2)
+        hist_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 8))
 
         tk.Label(
-            history_frame,
+            hist_frame,
             text="  HISTORY",
             font=("Segoe UI", 9, "bold"),
-            fg=_TEXT_DIM,
-            bg=_BG_SECONDARY,
+            fg=_DIM,
+            bg=_BG2,
             anchor="w",
         ).pack(fill=tk.X, padx=10, pady=(8, 0))
 
-        self._history_text = tk.Text(
-            history_frame,
+        self._history = tk.Text(
+            hist_frame,
             font=("Consolas", 10),
-            fg=_TEXT_DIM,
-            bg=_BG_SECONDARY,
+            fg=_DIM,
+            bg=_BG2,
             bd=0,
             highlightthickness=0,
             state=tk.DISABLED,
-            height=6,
+            height=5,
         )
-        self._history_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=(4, 10))
+        self._history.pack(fill=tk.BOTH, expand=True, padx=10, pady=(4, 8))
 
         # ── Status bar ────────────────────────────────────────────
-        status_frame = tk.Frame(self._root, bg=_BG_TERTIARY, height=30)
-        status_frame.pack(fill=tk.X, side=tk.BOTTOM)
-
-        self._status_label = tk.Label(
-            status_frame,
+        bar = tk.Frame(self._root, bg=_BG3, height=28)
+        bar.pack(fill=tk.X, side=tk.BOTTOM)
+        self._status = tk.Label(
+            bar,
             text="  Hold Ctrl to speak  |  Ctrl+C to quit",
             font=("Segoe UI", 9),
-            fg=_TEXT_DIM,
-            bg=_BG_TERTIARY,
+            fg=_DIM,
+            bg=_BG3,
             anchor="w",
         )
-        self._status_label.pack(fill=tk.X, padx=5, pady=2)
+        self._status.pack(fill=tk.X, padx=5, pady=2)
+
+    # ── Drawing ───────────────────────────────────────────────────
 
     def _draw_mic(self) -> None:
-        """Draw the animated microphone indicator."""
-        self._mic_canvas.delete("all")
-
+        """Draw the mic indicator based on current state."""
+        c = self._canvas
+        c.delete("all")
         cx, cy = 100, 100
 
-        if self._state == STATE_IDLE:
-            # Static circle
-            self._mic_canvas.create_oval(
-                cx - 40,
-                cy - 40,
-                cx + 40,
-                cy + 40,
-                fill=_BG_TERTIARY,
-                outline=_TEXT_DIM,
-                width=2,
+        if self._state == IDLE:
+            c.create_oval(
+                cx - 40, cy - 40, cx + 40, cy + 40, fill=_BG3, outline=_DIM, width=2
             )
-            # Mic icon (simple)
-            self._mic_canvas.create_text(
-                cx,
-                cy,
-                text="🎙",
-                font=("Segoe UI Emoji", 24),
-            )
+            c.create_text(cx, cy, text="\U0001f399", font=("Segoe UI Emoji", 22))
 
-        elif self._state == STATE_LISTENING:
-            # Pulsing outer rings
+        elif self._state == RECORDING:
+            # Pulsing rings
             for i in range(3):
-                r = 50 + i * 15 + int(8 * math.sin(self._pulse_angle + i * 0.8))
-                self._mic_canvas.create_oval(
-                    cx - r,
-                    cy - r,
-                    cx + r,
-                    cy + r,
-                    outline=_ACCENT,
-                    width=2,
-                )
-            # Center circle
-            self._mic_canvas.create_oval(
-                cx - 40,
-                cy - 40,
-                cx + 40,
-                cy + 40,
-                fill=_ACCENT,
-                outline=_ACCENT,
-                width=2,
+                r = 50 + i * 14 + int(8 * math.sin(self._angle + i * 0.9))
+                c.create_oval(cx - r, cy - r, cx + r, cy + r, outline=_BLUE, width=2)
+            c.create_oval(cx - 40, cy - 40, cx + 40, cy + 40, fill=_BLUE, outline=_BLUE)
+            c.create_text(cx, cy, text="\U0001f399", font=("Segoe UI Emoji", 22))
+
+        elif self._state == TRANSCRIBING:
+            c.create_oval(
+                cx - 40, cy - 40, cx + 40, cy + 40, fill=_BG3, outline=_YELLOW, width=2
             )
-            self._mic_canvas.create_text(
-                cx,
-                cy,
-                text="🎙",
-                font=("Segoe UI Emoji", 24),
+            c.create_text(
+                cx, cy, text="...", font=("Segoe UI", 20, "bold"), fill=_YELLOW
             )
 
-        elif self._state == STATE_PROCESSING:
+        elif self._state == CLASSIFYING:
             # Spinning dots
             for i in range(8):
-                angle = self._pulse_angle + (i * math.pi / 4)
-                r = 55
-                dx = r * math.cos(angle)
-                dy = r * math.sin(angle)
-                size = 4 + 2 * math.sin(self._pulse_angle * 2 + i)
-                self._mic_canvas.create_oval(
-                    cx + dx - size,
-                    cy + dy - size,
-                    cx + dx + size,
-                    cy + dy + size,
-                    fill=_ACCENT_PURPLE,
+                a = self._angle + i * math.pi / 4
+                dx, dy = 55 * math.cos(a), 55 * math.sin(a)
+                sz = 3 + 2 * math.sin(self._angle * 2 + i)
+                c.create_oval(
+                    cx + dx - sz,
+                    cy + dy - sz,
+                    cx + dx + sz,
+                    cy + dy + sz,
+                    fill=_PURPLE,
                     outline="",
                 )
-            self._mic_canvas.create_oval(
-                cx - 40,
-                cy - 40,
-                cx + 40,
-                cy + 40,
-                fill=_BG_TERTIARY,
-                outline=_ACCENT_PURPLE,
-                width=2,
+            c.create_oval(
+                cx - 40, cy - 40, cx + 40, cy + 40, fill=_BG3, outline=_PURPLE, width=2
             )
-            self._mic_canvas.create_text(
-                cx,
-                cy,
-                text="⏳",
-                font=("Segoe UI Emoji", 24),
+            c.create_text(cx, cy, text="\u23f3", font=("Segoe UI Emoji", 20))
+
+        elif self._state == RESULT_OK:
+            c.create_oval(
+                cx - 40, cy - 40, cx + 40, cy + 40, fill=_GREEN, outline=_GREEN
+            )
+            c.create_text(
+                cx, cy, text="\u2713", font=("Segoe UI", 28, "bold"), fill="white"
             )
 
-        elif self._state == STATE_RESULT:
-            # Green check
-            self._mic_canvas.create_oval(
-                cx - 40,
-                cy - 40,
-                cx + 40,
-                cy + 40,
-                fill=_ACCENT_GREEN,
-                outline=_ACCENT_GREEN,
-                width=2,
-            )
-            self._mic_canvas.create_text(
-                cx,
-                cy,
-                text="✓",
-                font=("Segoe UI", 30, "bold"),
-                fill="white",
+        elif self._state == RESULT_ERR:
+            c.create_oval(cx - 40, cy - 40, cx + 40, cy + 40, fill=_RED, outline=_RED)
+            c.create_text(
+                cx, cy, text="\u2717", font=("Segoe UI", 28, "bold"), fill="white"
             )
 
-        elif self._state == STATE_ERROR:
-            # Red X
-            self._mic_canvas.create_oval(
-                cx - 40,
-                cy - 40,
-                cx + 40,
-                cy + 40,
-                fill=_ACCENT_RED,
-                outline=_ACCENT_RED,
-                width=2,
-            )
-            self._mic_canvas.create_text(
-                cx,
-                cy,
-                text="✗",
-                font=("Segoe UI", 30, "bold"),
-                fill="white",
-            )
+    def _draw_bars(self) -> None:
+        """Draw audio level visualization bars."""
+        c = self._bars_canvas
+        c.delete("all")
+        w = 460
+        n = len(self._audio_levels)
+        bar_w = max(2, (w - n) // n)
+
+        for i, level in enumerate(self._audio_levels):
+            x = i * (bar_w + 1)
+            h = max(2, int(level * 35))
+            color = _BLUE if self._state == RECORDING else _BG3
+            c.create_rectangle(x, 40 - h, x + bar_w, 40, fill=color, outline="")
 
     def _animate(self) -> None:
-        """Animation tick — runs every 50ms."""
-        if self._should_stop:
+        """Animation tick."""
+        if self._stop:
             return
 
-        if self._state == STATE_LISTENING or self._state == STATE_PROCESSING:
-            self._pulse_angle += 0.15
+        if self._state in (RECORDING, CLASSIFYING):
+            self._angle += 0.18
+
+        # Decay audio levels when not recording
+        if self._state != RECORDING:
+            self._audio_levels = [v * 0.85 for v in self._audio_levels]
 
         self._draw_mic()
-        self._root.after(50, self._animate)
+        self._draw_bars()
+        self._root.after(40, self._animate)
+
+    # ── State management ──────────────────────────────────────────
 
     def _set_state(self, state: str) -> None:
-        """Update the UI state.
-
-        Args:
-            state: One of STATE_IDLE, STATE_LISTENING, etc.
-        """
         self._state = state
-
         labels = {
-            STATE_IDLE: ("Press Ctrl to speak", _TEXT_DIM),
-            STATE_LISTENING: ("Listening...", _ACCENT),
-            STATE_PROCESSING: ("Processing...", _ACCENT_PURPLE),
-            STATE_RESULT: ("Done!", _ACCENT_GREEN),
-            STATE_ERROR: ("Error", _ACCENT_RED),
+            IDLE: ("Hold Ctrl to speak", _DIM),
+            RECORDING: ("Listening...", _BLUE),
+            TRANSCRIBING: ("Transcribing...", _YELLOW),
+            CLASSIFYING: ("Thinking...", _PURPLE),
+            RESULT_OK: ("Done!", _GREEN),
+            RESULT_ERR: ("Error", _RED),
         }
+        text, color = labels.get(state, ("", _DIM))
+        self._state_lbl.config(text=text, fg=color)
 
-        text, color = labels.get(state, ("", _TEXT_DIM))
-        self._state_label.config(text=text, fg=color)
+    def _set_heard(self, text: str) -> None:
+        self._heard.config(text=text)
 
-    def _update_transcript(self, text: str) -> None:
-        """Update the heard text display.
+    def _set_action(self, text: str, color: str = _GREEN) -> None:
+        self._action.config(text=text, fg=color)
 
-        Args:
-            text: Transcribed text to display.
-        """
-        self._transcript_label.config(text=text)
+    def _add_history(self, line: str) -> None:
+        self._history.config(state=tk.NORMAL)
+        self._history.insert(tk.END, line + "\n")
+        self._history.see(tk.END)
+        self._history.config(state=tk.DISABLED)
 
-    def _update_result(self, text: str, color: str = _ACCENT_GREEN) -> None:
-        """Update the action result display.
+    def _on_audio_chunk(self, chunk: np.ndarray) -> None:
+        """Callback for real-time audio level visualization."""
+        level = float(np.sqrt(np.mean(chunk.astype(np.float64) ** 2)))
+        self._audio_levels.append(min(level * 10, 1.0))
+        if len(self._audio_levels) > 32:
+            self._audio_levels.pop(0)
 
-        Args:
-            text: Result message to display.
-            color: Text color.
-        """
-        self._result_label.config(text=text, fg=color)
+    # ── Pipeline ──────────────────────────────────────────────────
 
-    def _add_history(self, text: str) -> None:
-        """Add a line to the history log.
-
-        Args:
-            text: Line to append.
-        """
-        self._history_text.config(state=tk.NORMAL)
-        self._history_text.insert(tk.END, text + "\n")
-        self._history_text.see(tk.END)
-        self._history_text.config(state=tk.DISABLED)
-
-    def _process_command(self, text: str) -> None:
-        """Process a voice command in a background thread.
-
-        Args:
-            text: Transcribed command text.
-        """
+    def _process(self, text: str) -> None:
+        """Classify and execute a command."""
 
         def _worker() -> None:
             try:
-                self._root.after(0, self._set_state, STATE_PROCESSING)
-                self._root.after(0, self._update_transcript, text)
+                # Transcribe done — show text
+                self._root.after(0, self._set_heard, text)
+                self._root.after(0, self._set_state, CLASSIFYING)
 
-                # Classify intent
+                # Classify
                 intent = self._classifier.classify(text)
                 if intent is None:
                     msg = f"Could not understand: {text}"
-                    self._root.after(0, self._update_result, msg, _ACCENT_YELLOW)
-                    self._root.after(0, self._add_history, f"  ⚠ {msg}")
-                    self._root.after(0, self._set_state, STATE_ERROR)
-                    self._root.after(2000, self._set_state, STATE_IDLE)
+                    self._root.after(0, self._set_action, msg, _YELLOW)
+                    self._root.after(0, self._add_history, f"  \u26a0 {msg}")
+                    self._root.after(0, self._set_state, RESULT_ERR)
+                    self._root.after(2500, self._reset)
                     return
 
-                # Execute action
+                # Execute
                 result = self._executor.execute(intent)
                 action = intent.get("action", "unknown")
                 target = intent.get("target", "")
@@ -430,62 +359,78 @@ class AssistantUI:
                 message = result.get("message", "")
 
                 if status == "success":
-                    display = f"{action} → {target}" if target else action
-                    self._root.after(0, self._update_result, display, _ACCENT_GREEN)
-                    self._root.after(0, self._add_history, f"  ✓ {text} → {display}")
+                    display = f"{action} \u2192 {target}" if target else action
+                    self._root.after(0, self._set_action, display, _GREEN)
+                    self._root.after(
+                        0, self._add_history, f"  \u2713 {text} \u2192 {display}"
+                    )
+                    self._root.after(0, self._set_state, RESULT_OK)
                 else:
-                    self._root.after(0, self._update_result, message, _ACCENT_RED)
-                    self._root.after(0, self._add_history, f"  ✗ {text} → {message}")
+                    self._root.after(0, self._set_action, message, _RED)
+                    self._root.after(
+                        0, self._add_history, f"  \u2717 {text} \u2192 {message}"
+                    )
+                    self._root.after(0, self._set_state, RESULT_ERR)
 
-                self._root.after(0, self._set_state, STATE_RESULT)
-                self._root.after(2000, self._set_state, STATE_IDLE)
+                self._root.after(2500, self._reset)
 
             except Exception as exc:
                 msg = f"Error: {exc}"
-                self._root.after(0, self._update_result, msg, _ACCENT_RED)
-                self._root.after(0, self._add_history, f"  ✗ {msg}")
-                self._root.after(0, self._set_state, STATE_ERROR)
-                self._root.after(2000, self._set_state, STATE_IDLE)
+                self._root.after(0, self._set_action, msg, _RED)
+                self._root.after(0, self._add_history, f"  \u2717 {msg}")
+                self._root.after(0, self._set_state, RESULT_ERR)
+                self._root.after(2500, self._reset)
 
         threading.Thread(target=_worker, daemon=True).start()
 
-    def _listen_loop(self) -> None:
-        """Main listening loop — runs in background thread."""
-        while not self._should_stop:
-            try:
-                self._root.after(0, self._set_state, STATE_LISTENING)
-                self._root.after(0, self._update_transcript, "Listening...")
+    def _reset(self) -> None:
+        """Reset to idle state."""
+        self._set_state(IDLE)
+        self._set_heard("...")
+        self._set_action("...", _GREEN)
 
-                audio = self._listener.listen()
-                if audio is None:
-                    self._root.after(0, self._set_state, STATE_IDLE)
+    def _listen_loop(self) -> None:
+        """Background listening loop."""
+        while not self._stop:
+            try:
+                self._root.after(0, self._set_state, RECORDING)
+                self._root.after(0, self._set_heard, "Listening... hold Ctrl")
+
+                audio = self._listener.listen(
+                    on_start=lambda: self._root.after(
+                        0, self._set_heard, "Recording... release Ctrl when done"
+                    ),
+                    on_audio=self._on_audio_chunk,
+                )
+
+                if audio is None or len(audio) == 0:
+                    self._root.after(0, self._reset)
                     continue
 
-                self._root.after(0, self._set_state, STATE_PROCESSING)
-                self._root.after(0, self._update_transcript, "Transcribing...")
+                # Got audio — transcribe
+                self._root.after(0, self._set_state, TRANSCRIBING)
+                self._root.after(0, self._set_heard, "Transcribing...")
 
                 text = self._transcriber.transcribe(audio)
                 if not text:
-                    self._root.after(0, self._set_state, STATE_IDLE)
+                    self._root.after(0, self._set_heard, "(no speech detected)")
+                    self._root.after(2000, self._reset)
                     continue
 
-                self._process_command(text)
+                # Got text — process
+                self._process(text)
 
             except Exception as exc:
-                if not self._should_stop:
-                    self._root.after(0, self._add_history, f"  ✗ Listener error: {exc}")
-                    self._root.after(0, self._set_state, STATE_IDLE)
+                if not self._stop:
+                    self._root.after(0, self._add_history, f"  \u2717 Listener: {exc}")
+                    self._root.after(0, self._reset)
 
     def _on_close(self) -> None:
-        """Handle window close."""
-        self._should_stop = True
+        self._stop = True
         self._root.destroy()
 
     def run(self) -> None:
         """Start the UI and listening loop."""
-        # Start listening in background thread
-        listen_thread = threading.Thread(target=self._listen_loop, daemon=True)
-        listen_thread.start()
-
-        # Run the tkinter main loop
+        t = threading.Thread(target=self._listen_loop, daemon=True)
+        t.start()
         self._root.mainloop()
