@@ -35,15 +35,18 @@ class Classifier:
         self._questions = build_questions()
 
     def _ensure_model(self) -> Any:
-        """Lazy-load the Laya Router on first use.
+        """Lazy-load the Laya agent on first use.
+
+        Uses the multilingual model directly (supports Malayalam + English)
+        instead of the Router which may misroute non-Latin scripts.
 
         Returns:
-            The loaded Router instance.
+            The loaded Laya agent instance.
         """
         if self._router is not None:
             return self._router
 
-        from laya import Router
+        import laya
 
         log.info(
             "loading_laya",
@@ -51,13 +54,10 @@ class Classifier:
             device=self._config.device,
         )
 
-        kwargs: dict[str, Any] = {
-            "preload": True,
-        }
-        if self._config.device != "auto":
-            kwargs["device"] = self._config.device
-
-        self._router = Router(**kwargs)
+        self._router = laya.load(
+            "convaiinnovations/laya",
+            subfolder="multilingual",
+        )
 
         log.info("laya_ready")
         return self._router
@@ -75,14 +75,13 @@ class Classifier:
         if not text or not text.strip():
             return None
 
-        router = self._ensure_model()
+        agent = self._ensure_model()
 
         state = {"body": text}
 
-        result = router.predict(state, self._questions)
+        result = agent.predict(state, self._questions)
 
         answers = result.get("answers", {})
-        routing = result.get("routing", {})
 
         # Extract primary action
         action_answer = answers.get("action", {})
@@ -93,8 +92,6 @@ class Classifier:
             "classification_result",
             action=action,
             confidence=f"{confidence:.2f}",
-            routing_model=routing.get("model"),
-            routing_reason=routing.get("reason"),
         )
 
         if confidence < _CONFIDENCE_THRESHOLD:

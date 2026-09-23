@@ -7,6 +7,7 @@ then returns the recorded audio for transcription.
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -41,18 +42,36 @@ class Listener:
         self._silence_threshold = config.silence_threshold
         self._max_duration = config.max_duration
 
-    def listen(self) -> NDArray[np.float32] | None:
+    def listen(
+        self,
+        on_start: Callable[[], None] | None = None,
+        on_audio: Callable[[NDArray[np.float32]], None] | None = None,
+    ) -> NDArray[np.float32] | None:
         """Wait for trigger key press and record audio.
+
+        Args:
+            on_start: Callback when recording starts.
+            on_audio: Callback with audio chunks during recording.
 
         Returns:
             Recorded audio as float32 array, or None if recording was
             too short or empty.
         """
+        import keyboard
+
         log.debug("waiting_for_trigger", key=self._trigger_key)
-        self._wait_for_trigger()
+
+        # Non-blocking poll for trigger key
+        while True:
+            if keyboard.is_pressed(self._trigger_key):
+                break
+            time.sleep(0.05)
+
+        if on_start:
+            on_start()
 
         log.debug("recording_started")
-        audio = self._record()
+        audio = self._record(on_audio)
         log.debug("recording_stopped", samples=len(audio))
 
         if len(audio) < self._sample_rate * 0.3:
@@ -61,25 +80,19 @@ class Listener:
 
         return normalize_audio(audio)
 
-    def _wait_for_trigger(self) -> None:
-        """Block until the trigger key is pressed.
-
-        Uses keyboard polling. On Windows, checks the key state
-        via the keyboard module.
-        """
-        import keyboard
-
-        keyboard.wait(self._trigger_key)
-        # Small debounce delay
-        time.sleep(0.05)
-
-    def _record(self) -> NDArray[np.float32]:
+    def _record(
+        self,
+        on_audio: Callable[[NDArray[np.float32]], None] | None = None,
+    ) -> NDArray[np.float32]:
         """Record audio while trigger key is held, with VAD.
 
         Stops recording when:
         - Trigger key is released
         - Silence exceeds threshold for 1.5 seconds
         - Max duration is reached
+
+        Args:
+            on_audio: Callback with each audio chunk.
 
         Returns:
             Recorded audio as float32 array.
@@ -114,6 +127,10 @@ class Listener:
                 chunk = data[:, 0] if data.ndim > 1 else data
                 frames.append(chunk.copy())
 
+                # Send chunk to callback for real-time visualization
+                if on_audio:
+                    on_audio(chunk)
+
                 # Voice activity detection
                 rms = compute_rms(chunk)
                 if rms < self._silence_threshold / 10000:
@@ -129,15 +146,3 @@ class Listener:
             return np.array([], dtype=np.float32)
 
         return np.concatenate(frames)
-
-    def play_beep(self, frequency: float = 800, duration: float = 0.1) -> None:
-        """Play a short beep to indicate recording start.
-
-        Args:
-            frequency: Beep frequency in Hz.
-            duration: Beep duration in seconds.
-        """
-        t = np.linspace(0, duration, int(self._sample_rate * duration), False)
-        beep = 0.3 * np.sin(2 * np.pi * frequency * t)
-        sd.play(beep, self._sample_rate)
-        sd.wait()
