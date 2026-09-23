@@ -39,6 +39,7 @@ dependencies = [
     "pyautogui>=0.9",
     "psutil>=5.9",
     "keyboard>=0.13",
+    "openwakeword>=0.6",
 ]
 
 [project.optional-dependencies]
@@ -98,6 +99,7 @@ ignore = [
 "__init__.py" = ["F401"]
 "tests/*" = ["S101"]
 "scripts/*" = ["T201"]  # Allow print() in CLI scripts
+"scripts/finetune/*" = ["S311"]  # Dataset shuffling is not cryptographic
 "src/laya_local/__main__.py" = ["T201"]  # Allow print() in CLI entry point
 "src/laya_local/responder/tts.py" = ["T201"]  # Allow print() for TTS fallback
 "src/laya_local/actions/*.py" = ["S602", "S603", "S606", "S607"]  # Allow subprocess/os.startfile in actions

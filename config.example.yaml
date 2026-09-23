@@ -18,7 +18,10 @@ tts:
   model: "en_US-lessac-medium"  # Piper voice model
 
 listener:
+  mode: "push_to_talk"     # push_to_talk or wake_word
   trigger_key: "right ctrl"  # push-to-talk key (right ctrl avoids Ctrl+C conflicts)
+  wake_word: "hey_jarvis"  # wake word model name (openwakeword)
+  wake_threshold: 0.5      # wake word detection sensitivity (0.0-1.0)
   sample_rate: 16000       # audio sample rate in Hz
   channels: 1              # mono
   silence_threshold: 500   # VAD silence threshold

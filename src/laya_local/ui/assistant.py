@@ -98,6 +98,15 @@ class AssistantUI:
         self._classifier = classifier
         self._executor = executor
 
+        if getattr(listener, "mode", "push_to_talk") == "wake_word":
+            self._idle_hint = f"Say \u201c{listener.wake_word}\u201d"
+            self._status_hint = (
+                f"  Say \u201c{listener.wake_word}\u201d to wake  |  Esc to quit"
+            )
+        else:
+            self._idle_hint = "Hold right Ctrl to speak"
+            self._status_hint = "  Hold right Ctrl to speak  |  Esc to quit"
+
         self._state = IDLE
         self._angle = 0.0
         self._stop = False
@@ -138,7 +147,7 @@ class AssistantUI:
         # ── State label ───────────────────────────────────────────
         self._state_lbl = tk.Label(
             self._root,
-            text="Hold right Ctrl to speak",
+            text=self._idle_hint,
             font=("Segoe UI", 14),
             fg=_DIM,
             bg=_BG,
@@ -231,7 +240,7 @@ class AssistantUI:
         bar.pack(fill=tk.X, side=tk.BOTTOM)
         self._status = tk.Label(
             bar,
-            text="  Hold right Ctrl to speak  |  Esc to quit",
+            text=self._status_hint,
             font=("Segoe UI", 9),
             fg=_DIM,
             bg=_BG3,
@@ -337,7 +346,7 @@ class AssistantUI:
     def _set_state(self, state: str) -> None:
         self._state = state
         labels = {
-            IDLE: ("Hold right Ctrl to speak", _DIM),
+            IDLE: (self._idle_hint, _DIM),
             RECORDING: ("Listening...", _BLUE),
             TRANSCRIBING: ("Transcribing...", _YELLOW),
             CLASSIFYING: ("Thinking...", _PURPLE),
@@ -433,15 +442,20 @@ class AssistantUI:
 
     def _listen_loop(self) -> None:
         """Background listening loop."""
+        if self._listener.mode == "wake_word":
+            listen_hint = f"Listening for \u201c{self._listener.wake_word}\u201d..."
+            record_hint = "Command heard — recording..."
+        else:
+            listen_hint = "Listening... hold right Ctrl"
+            record_hint = "Recording... release right Ctrl when done"
+
         while not self._stop:
             try:
                 self._root.after(0, self._set_state, RECORDING)
-                self._root.after(0, self._set_heard, "Listening... hold Ctrl")
+                self._root.after(0, self._set_heard, listen_hint)
 
                 audio = self._listener.listen(
-                    on_start=lambda: self._root.after(
-                        0, self._set_heard, "Recording... release Ctrl when done"
-                    ),
+                    on_start=lambda: self._root.after(0, self._set_heard, record_hint),
                     on_audio=self._on_audio_chunk,
                 )
 

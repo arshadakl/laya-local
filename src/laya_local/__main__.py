@@ -44,6 +44,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Voice mode without GUI — terminal output only.",
     )
     parser.add_argument(
+        "--wake-word",
+        action="store_true",
+        help="Use wake-word mode (say the wake word instead of holding a key).",
+    )
+    parser.add_argument(
         "--config",
         type=str,
         default=None,
@@ -74,6 +79,11 @@ def main(argv: list[str] | None = None) -> None:
 
     config_path = Path(args.config) if args.config else None
     config = load_config(config_path)
+
+    if args.wake_word:
+        from laya_local.config import with_listener_mode
+
+        config = with_listener_mode(config, "wake_word")
 
     log.info("starting", version=__version__)
 

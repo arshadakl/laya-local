@@ -46,7 +46,10 @@ class TTSConfig:
 class ListenerConfig:
     """Microphone listener configuration."""
 
+    mode: str = "push_to_talk"  # push_to_talk or wake_word
     trigger_key: str = "right ctrl"
+    wake_word: str = "hey_jarvis"
+    wake_threshold: float = 0.5
     sample_rate: int = 16000
     channels: int = 1
     silence_threshold: int = 500
@@ -108,3 +111,19 @@ def load_config(path: Path | None = None) -> AppConfig:
         listener=_merge_dataclass(ListenerConfig, data.get("listener", {})),
         actions=_merge_dataclass(ActionsConfig, data.get("actions", {})),
     )
+
+
+def with_listener_mode(config: AppConfig, mode: str) -> AppConfig:
+    """Return a copy of the config with the listener mode overridden.
+
+    Args:
+        config: Existing application config.
+        mode: Listener mode (``push_to_talk`` or ``wake_word``).
+
+    Returns:
+        A new AppConfig with the updated listener mode.
+    """
+    import dataclasses
+
+    new_listener = dataclasses.replace(config.listener, mode=mode)
+    return dataclasses.replace(config, listener=new_listener)
